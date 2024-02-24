@@ -62,6 +62,8 @@ class HitachiAirCloud:
         self._connection_info = None
         self._interior_units = {}
 
+        self.on_change = None
+
     async def __aenter__(self) -> Self:
         await self.connect()
         return self
