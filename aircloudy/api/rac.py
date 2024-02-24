@@ -1,13 +1,11 @@
-import http.client
-import json
 import logging
 from typing import List, Optional
 
-from aircloudy.contants import DEFAULT_REST_API_HOST, SSL_CONTEXT, FanSpeed, FanSwing, OperatingMode, Power
+from aircloudy.contants import DEFAULT_REST_API_HOST, FanSpeed, FanSwing, OperatingMode, Power
 
 from ..errors import TooManyRequestsException
 from ..interior_unit_models import InteriorUnit
-from .common import create_headers
+from .http_client import perform_request
 from .rac_models import CommandResponse, CommandStatus, PowerAllResponse, _GeneralControlCommand, _InteriorUnitRest
 
 logger = logging.getLogger(__name__)
@@ -16,46 +14,25 @@ logger = logging.getLogger(__name__)
 def get_interior_units(
     token: str, family_id: int, host: str = DEFAULT_REST_API_HOST, port: int = 443
 ) -> List[InteriorUnit]:
-    con = http.client.HTTPSConnection(host, port=port, context=SSL_CONTEXT)
-    try:
-        logger.debug("Get interior units")
-        con.request("GET", f"/rac/ownership/groups/{family_id}/idu-list", headers=create_headers(host, token))
-        response_http = con.getresponse()
-        response_status = response_http.status
-        response_body = response_http.read().decode()
-        logger.debug("Response status: %d, body: %s", response_status, response_body)
+    logger.debug("Get interior units")
+    response = perform_request("GET", f"/rac/ownership/groups/{family_id}/idu-list", token=token, host=host, port=port)
 
-        if response_http.status != 200:
-            raise Exception(f"Call failed (status={response_status} body={response_body}")
+    if response.status != 200:
+        raise Exception(f"Call failed (status={response.status} body={response.body}")
 
-        return [_InteriorUnitRest(d).to_internal_representation() for d in json.loads(response_body)]
-    finally:
-        con.close()
+    return [_InteriorUnitRest(d).to_internal_representation() for d in response.body_as_json]
 
 
 def get_command_status(
     token: str, commands: List[CommandResponse], host: str = DEFAULT_REST_API_HOST, port: int = 443
 ) -> List[CommandStatus]:
-    con = http.client.HTTPSConnection(host, port=port, context=SSL_CONTEXT)
-    try:
-        logger.debug("Get command status")
-        con.request(
-            "POST",
-            "/rac/status/command",
-            json.dumps([c.__dict__ for c in commands]),
-            headers=create_headers(host, token),
-        )
-        response_http = con.getresponse()
-        response_status = response_http.status
-        response_body = response_http.read().decode()
-        logger.debug("Response status: %d, body: %s", response_status, response_body)
+    logger.debug("Get command status")
 
-        if response_http.status != 200:
-            raise Exception(f"Call failed (status={response_status} body={response_body}")
+    response = perform_request(
+        "POST", "/rac/status/command", [c.__dict__ for c in commands], token=token, host=host, port=port
+    )
 
-        return [CommandStatus(s) for s in json.loads(response_body)]
-    finally:
-        con.close()
+    return [CommandStatus(s) for s in response.body_as_json]
 
 
 def configure_interior_unit(
@@ -76,81 +53,53 @@ def configure_interior_unit(
     :raises:
         TooManyRequestsException: If previous command is still in progress
     """
-    con = http.client.HTTPSConnection(host, port=port, context=SSL_CONTEXT)
-    try:
-        command = _GeneralControlCommand(
-            interior_unit.copy(
-                power=power,
-                mode=mode,
-                requested_temperature=requested_temperature,
-                humidity=humidity,
-                fan_speed=fan_speed,
-                fan_swing=fan_swing,
-            )
+    command = _GeneralControlCommand(
+        interior_unit.copy(
+            power=power,
+            mode=mode,
+            requested_temperature=requested_temperature,
+            humidity=humidity,
+            fan_speed=fan_speed,
+            fan_swing=fan_swing,
         )
-        logger.debug("Configure interior unit familiy_id=%s : %s", family_id, command)
-        con.request(
-            "PUT",
-            f"/rac/basic-idu-control/general-control-command/{command.id}?familyId={family_id}",
-            json.dumps(command.__dict__),
-            headers=create_headers(host, token),
-        )
-        response_http = con.getresponse()
-        response_status = response_http.status
-        response_body = response_http.read().decode()
-        logger.debug("Response status: %d, body: %s", response_status, response_body)
+    )
 
-        if response_http.status == 429:
-            raise TooManyRequestsException(response_body)
-        if response_http.status != 200:
-            raise Exception(f"Call failed (status={response_status} body={response_body}")
+    logger.debug("Configure interior unit familiy_id=%s : %s", family_id, command)
+    response = perform_request(
+        "PUT",
+        f"/rac/basic-idu-control/general-control-command/{command.id}?familyId={family_id}",
+        command.__dict__,
+        do_not_raise_exception_on=(200, 429),
+        token=token,
+        host=host,
+        port=port,
+    )
 
-        return CommandResponse(json.loads(response_body))
-    finally:
-        con.close()
+    if response.status == 429:
+        raise TooManyRequestsException(response.body)
+
+    return CommandResponse(response.body_as_json)
 
 
 def request_refresh_interior_unit_state(
     token: str, rac_id: int, family_id: int, host: str = DEFAULT_REST_API_HOST, port: int = 443
 ) -> None:
-    con = http.client.HTTPSConnection(host, port=port, context=SSL_CONTEXT)
-    try:
-        logger.debug("Request refresh interior unit state for rac id=%s, family_id=%s", rac_id, family_id)
-        con.request("PUT", f"/rac/status/{rac_id}?familyId={family_id}", headers=create_headers(host, token))
-        response_http = con.getresponse()
-        response_status = response_http.status
-        response_body = response_http.read().decode()
-        logger.debug("Response status: %d, body: %s", response_status, response_body)
-
-        if response_http.status != 200:
-            raise Exception(f"Call failed (status={response_status} body={response_body}")
-    finally:
-        con.close()
+    logger.debug("Request refresh interior unit state for rac id=%s, family_id=%s", rac_id, family_id)
+    perform_request("PUT", f"/rac/status/{rac_id}?familyId={family_id}", token=token, host=host, port=port)
 
 
 def set_power(token: str, rac_id: str, power: Power, host: str = DEFAULT_REST_API_HOST, port: int = 443) -> None:
-    con = http.client.HTTPSConnection(host, port=port, context=SSL_CONTEXT)
-    try:
-        logger.debug("Set power rac_id=%s, power=%s", rac_id, power)
-        con.request(
-            "PUT",
-            f"/rac/basic-idu-control/switch-on-off/{rac_id}",
-            json.dumps(
-                {
-                    "power": power,
-                }
-            ),
-            headers=create_headers(host, token),
-        )
-        response_http = con.getresponse()
-        response_status = response_http.status
-        response_body = response_http.read().decode()
-        logger.debug("Response status: %d, body: %s", response_status, response_body)
-
-        if response_http.status != 200:
-            raise Exception(f"Fetch idu list failed (status={response_status} body={response_body}")
-    finally:
-        con.close()
+    logger.debug("Set power rac_id=%s, power=%s", rac_id, power)
+    perform_request(
+        "PUT",
+        f"/rac/basic-idu-control/switch-on-off/{rac_id}",
+        {
+            "power": power,
+        },
+        token=token,
+        host=host,
+        port=port,
+    )
 
 
 def set_power_all(
@@ -161,27 +110,19 @@ def set_power_all(
     host: str = DEFAULT_REST_API_HOST,
     port: int = 443,
 ) -> PowerAllResponse:
-    con = http.client.HTTPSConnection(host, port=port, context=SSL_CONTEXT)
-    url = ""
     match power:
         case "ON":
             url = f"/rac/manage-idu/groups/{family_id}/idu/start"
         case "OFF":
             url = f"/rac/manage-idu/groups/{family_id}/idu/stop"
+        case _:
+            raise Exception(f"Unknown power value {power}")
 
     units = [_GeneralControlCommand(iu.copy(power=power)).__dict__ for iu in interior_units]
 
-    try:
-        logger.debug("Set power all power=%s for %s", power, units)
-        con.request("PUT", url, json.dumps(units), headers=create_headers(host, token))
-        response_http = con.getresponse()
-        response_status = response_http.status
-        response_body = response_http.read().decode()
-        logger.debug("Response status: %d, body: %s", response_status, response_body)
+    logger.debug("Set power all power=%s for %s", power, units)
+    response = perform_request(
+        "PUT", url, units, do_not_raise_exception_on=(200, 207), token=token, host=host, port=port
+    )
 
-        if response_http.status not in (200, 207):
-            raise Exception(f"Fetch idu list failed (status={response_status} body={response_body}")
-
-        return PowerAllResponse(json.loads(response_body))
-    finally:
-        con.close()
+    return PowerAllResponse(response.body_as_json)

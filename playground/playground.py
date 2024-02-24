@@ -67,20 +67,20 @@ async def main() -> None:
 
 
 def play_raw_api():
-    auth = aircloudy.api.iam.perform_login(credentials_email, credentials_password, DEFAULT_REST_API_HOST)
-    user = aircloudy.api.iam.fetch_profile(auth.token, DEFAULT_REST_API_HOST)
-    units = aircloudy.api.rac.get_interior_units(auth.token, user.familyId, DEFAULT_REST_API_HOST)
-    unit_bureau = next((iu for iu in units if iu.name == "Bureau"), None)
-    if unit_bureau is None:
-        raise Exception("No unit named `Bureau`")
-
-    cmd= aircloudy.api.rac.configure_interior_unit(auth.token, user.familyId, unit_bureau, power="ON",
-                                                   host=DEFAULT_REST_API_HOST)
-    aircloudy.api.rac.get_command_status(auth.token, [{"commandId": cmd.commandId, "thingId": cmd.thingId}],
-                                         DEFAULT_REST_API_HOST)
-    sleep(3)
-    cmd = aircloudy.api.rac.configure_interior_unit(auth.token, user.familyId, unit_bureau, power="OFF",
-                                                    host=DEFAULT_REST_API_HOST)
+    auth = aircloudy.api.iam.perform_login(credentials_email, credentials_password+"a", "192.168.1.76")
+    # user = aircloudy.api.iam.fetch_profile(auth.token, DEFAULT_REST_API_HOST)
+    # units = aircloudy.api.rac.get_interior_units(auth.token, user.familyId, DEFAULT_REST_API_HOST)
+    # unit_bureau = next((iu for iu in units if iu.name == "Bureau"), None)
+    # if unit_bureau is None:
+    #     raise Exception("No unit named `Bureau`")
+    #
+    # cmd= aircloudy.api.rac.configure_interior_unit(auth.token, user.familyId, unit_bureau, power="ON",
+    #                                                host=DEFAULT_REST_API_HOST)
+    # aircloudy.api.rac.get_command_status(auth.token, [{"commandId": cmd.commandId, "thingId": cmd.thingId}],
+    #                                      DEFAULT_REST_API_HOST)
+    # sleep(3)
+    # cmd = aircloudy.api.rac.configure_interior_unit(auth.token, user.familyId, unit_bureau, power="OFF",
+    #                                                 host=DEFAULT_REST_API_HOST)
 
 # asyncio.run(main())
 play_raw_api()

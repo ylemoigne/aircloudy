@@ -30,3 +30,18 @@ class InteriorUnitNotFoundException(Exception):
 class CommandFailedException(Exception):
     def __init__(self, message: str) -> None:
         Exception.__init__(self, message)
+
+
+class AuthenticationFailedException(Exception):
+    def __init__(self, message: str) -> None:
+        Exception.__init__(self, message)
+
+
+class HostnameResolutionFailed(Exception):
+    def __init__(self, message: str) -> None:
+        Exception.__init__(self, message)
+
+
+class ConnectionTimeout(Exception):
+    def __init__(self, message: str) -> None:
+        Exception.__init__(self, message)
