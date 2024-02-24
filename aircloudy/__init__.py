@@ -3,8 +3,7 @@ from .contants import FanSpeed, FanSwing, OperatingMode, Power, ScheduleType
 from .errors import (
     AuthenticationFailedException,
     CommandFailedException,
-    ConnectionTimeout,
-    HostnameResolutionFailed,
+    ConnectionFailed,
     IllegalStateException,
     InteriorUnitNotFoundException,
     TooManyRequestsException,

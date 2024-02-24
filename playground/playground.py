@@ -66,8 +66,8 @@ async def main() -> None:
         await ac.set_power(unit_bureau, "OFF")
 
 
-def play_raw_api():
-    auth = aircloudy.api.iam.perform_login(credentials_email, credentials_password+"a", "192.168.1.76")
+async def play_raw_api():
+    auth = await aircloudy.api.iam.perform_login(credentials_email, credentials_password+"a")
     # user = aircloudy.api.iam.fetch_profile(auth.token, DEFAULT_REST_API_HOST)
     # units = aircloudy.api.rac.get_interior_units(auth.token, user.familyId, DEFAULT_REST_API_HOST)
     # unit_bureau = next((iu for iu in units if iu.name == "Bureau"), None)
@@ -83,4 +83,4 @@ def play_raw_api():
     #                                                 host=DEFAULT_REST_API_HOST)
 
 # asyncio.run(main())
-play_raw_api()
+asyncio.run(play_raw_api())

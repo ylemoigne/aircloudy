@@ -1,11 +1,11 @@
-import http.client
-import json
 import logging
-import socket
 from typing import Literal, Optional, Tuple
 
+import aiohttp
+from aiohttp import TCPConnector
+
 from aircloudy.contants import DEFAULT_REST_API_HOST, SSL_CONTEXT
-from aircloudy.errors import ConnectionTimeout, HostnameResolutionFailed
+from aircloudy.errors import ConnectionFailed
 
 from .http_client_models import HttpResponse
 
@@ -24,7 +24,7 @@ def create_headers(host: str, token: Optional[str] = None) -> dict[str, str]:
     return headers
 
 
-def perform_request(
+async def perform_request(
     method: Literal["GET", "POST", "PUT"],
     url: str,
     body: Optional[object] = None,
@@ -33,31 +33,18 @@ def perform_request(
     host: str = DEFAULT_REST_API_HOST,
     port: int = 443,
 ) -> HttpResponse:
-    con = http.client.HTTPSConnection(host, port=port, context=SSL_CONTEXT)
+    logger.debug("Perform %s %s on %s:%d", method, url, host, port)
     try:
-        logger.debug("Perform %s %s on %s:%d", method, url, host, port)
-        con.request(
-            method,
-            url,
-            body=json.dumps(body) if body is not None else None,
-            headers=create_headers(host, token),
-        )
-        response_http = con.getresponse()
-        response_status = response_http.status
-        response_body = response_http.read().decode()
-        logger.debug("Response status=%d body=%s", response_status, response_body)
+        async with aiohttp.ClientSession(
+            f"https://{host}:{port}", connector=TCPConnector(ssl=SSL_CONTEXT)
+        ) as session, session.request(method, url, json=body, headers=create_headers(host, token)) as response_http:
+            response_status = response_http.status
+            response_body = await response_http.text()
+            logger.debug("Response status=%d body=%s", response_status, response_body)
 
-        if response_status not in do_not_raise_exception_on:
-            raise Exception(f"Call failed (status={response_status} body={response_body}")
+            if response_status not in do_not_raise_exception_on:
+                raise Exception(f"Call failed (status={response_status} body={response_body}")
 
-        return HttpResponse(response_status, response_body)
-    except socket.gaierror as e:
-        match e.errno:
-            case 8:
-                raise HostnameResolutionFailed(f"Failed to resolve hostname: {host}") from e
-            case 60:
-                raise ConnectionTimeout(f"Failed to connect to host: {host}") from e
-            case _:
-                raise e
-    finally:
-        con.close()
+            return HttpResponse(response_status, response_body)
+    except aiohttp.client_exceptions.ClientConnectorError as e:
+        raise ConnectionFailed(f"Failed to connect to host: {host}") from e

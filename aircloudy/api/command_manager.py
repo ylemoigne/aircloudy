@@ -74,7 +74,7 @@ class CommandManager:
                 logger.debug("Fetch tasks status")
                 self._commands_status = {
                     s.commandId: s
-                    for s in get_command_status(
+                    for s in await get_command_status(
                         self._token_supplier(), list(self._commands.values()), self._api_host, self._port
                     )
                 }

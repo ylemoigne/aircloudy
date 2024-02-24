@@ -15,6 +15,7 @@ from .contants import (
     FanSwing,
     OperatingMode,
     Power,
+    TemperatureUnit,
 )
 from .errors import CommandFailedException, IllegalStateException, InteriorUnitNotFoundException
 from .interior_unit_models import InteriorUnit
@@ -82,6 +83,16 @@ class HitachiAirCloud:
     def interior_units(self) -> List[InteriorUnit]:
         return [copy.deepcopy(iu) for iu in self._interior_units.values()]
 
+    @property
+    def temperature_unit(self) -> TemperatureUnit:
+        if self._connection_info is None:
+            raise Exception("AirCloud is not connected")
+
+        if self._connection_info.user_profile.settings.temperatureUnit == "degC":
+            return "CELSIUS"
+
+        return "FAHRENHEIT"
+
     def interior_unit(self, rac_id: int) -> Optional[InteriorUnit]:
         return self._interior_units.get(rac_id)
 
@@ -103,11 +114,11 @@ class HitachiAirCloud:
         if self.is_open:
             raise IllegalStateException("AirCloud already connected")
 
-        authentication_result = api.perform_login(self._email, self._password, self._api_host)
-        user_profile = api.fetch_profile(authentication_result.token, self._api_host)
+        authentication_result = await api.perform_login(self._email, self._password, self._api_host)
+        user_profile = await api.fetch_profile(authentication_result.token, self._api_host)
         self._interior_units = {
             iu.id: iu
-            for iu in api.get_interior_units(authentication_result.token, user_profile.familyId, self._api_host)
+            for iu in await api.get_interior_units(authentication_result.token, user_profile.familyId, self._api_host)
         }
 
         notification_socket = notifications.NotificationsWebsocket(
@@ -162,7 +173,7 @@ class HitachiAirCloud:
         if self._connection_info is None:
             raise IllegalStateException("Connect must be called before calling this method")
 
-        command: CommandResponse = api.configure_interior_unit(
+        command: CommandResponse = await api.configure_interior_unit(
             self._connection_info.authentication_result.token,
             self._connection_info.user_profile.familyId,
             interior_unit,
@@ -188,7 +199,7 @@ class HitachiAirCloud:
         if up_to_date_interior_unit is None:
             raise InteriorUnitNotFoundException(f"Interior unit {interior_unit.id} not found")
 
-        command = api.configure_interior_unit(
+        command = await api.configure_interior_unit(
             self._connection_info.authentication_result.token,
             self._connection_info.user_profile.familyId,
             up_to_date_interior_unit,
@@ -214,7 +225,7 @@ class HitachiAirCloud:
         if up_to_date_interior_unit is None:
             raise InteriorUnitNotFoundException(f"Interior unit {interior_unit.id} not found")
 
-        command = api.configure_interior_unit(
+        command = await api.configure_interior_unit(
             self._connection_info.authentication_result.token,
             self._connection_info.user_profile.familyId,
             up_to_date_interior_unit,
@@ -240,7 +251,7 @@ class HitachiAirCloud:
         if up_to_date_interior_unit is None:
             raise InteriorUnitNotFoundException(f"Interior unit {interior_unit.id} not found")
 
-        command = api.configure_interior_unit(
+        command = await api.configure_interior_unit(
             self._connection_info.authentication_result.token,
             self._connection_info.user_profile.familyId,
             up_to_date_interior_unit,
@@ -266,7 +277,7 @@ class HitachiAirCloud:
         if up_to_date_interior_unit is None:
             raise InteriorUnitNotFoundException(f"Interior unit {interior_unit.id} not found")
 
-        command = api.configure_interior_unit(
+        command = await api.configure_interior_unit(
             self._connection_info.authentication_result.token,
             self._connection_info.user_profile.familyId,
             up_to_date_interior_unit,
@@ -292,7 +303,7 @@ class HitachiAirCloud:
         if up_to_date_interior_unit is None:
             raise InteriorUnitNotFoundException(f"Interior unit {interior_unit.id} not found")
 
-        command = api.configure_interior_unit(
+        command = await api.configure_interior_unit(
             self._connection_info.authentication_result.token,
             self._connection_info.user_profile.familyId,
             up_to_date_interior_unit,
@@ -318,7 +329,7 @@ class HitachiAirCloud:
         if up_to_date_interior_unit is None:
             raise InteriorUnitNotFoundException(f"Interior unit {interior_unit.id} not found")
 
-        command = api.configure_interior_unit(
+        command = await api.configure_interior_unit(
             self._connection_info.authentication_result.token,
             self._connection_info.user_profile.familyId,
             up_to_date_interior_unit,

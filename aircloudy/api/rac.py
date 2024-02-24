@@ -11,11 +11,13 @@ from .rac_models import CommandResponse, CommandStatus, PowerAllResponse, _Gener
 logger = logging.getLogger(__name__)
 
 
-def get_interior_units(
+async def get_interior_units(
     token: str, family_id: int, host: str = DEFAULT_REST_API_HOST, port: int = 443
 ) -> List[InteriorUnit]:
     logger.debug("Get interior units")
-    response = perform_request("GET", f"/rac/ownership/groups/{family_id}/idu-list", token=token, host=host, port=port)
+    response = await perform_request(
+        "GET", f"/rac/ownership/groups/{family_id}/idu-list", token=token, host=host, port=port
+    )
 
     if response.status != 200:
         raise Exception(f"Call failed (status={response.status} body={response.body}")
@@ -23,19 +25,19 @@ def get_interior_units(
     return [_InteriorUnitRest(d).to_internal_representation() for d in response.body_as_json]
 
 
-def get_command_status(
+async def get_command_status(
     token: str, commands: List[CommandResponse], host: str = DEFAULT_REST_API_HOST, port: int = 443
 ) -> List[CommandStatus]:
     logger.debug("Get command status")
 
-    response = perform_request(
+    response = await perform_request(
         "POST", "/rac/status/command", [c.__dict__ for c in commands], token=token, host=host, port=port
     )
 
     return [CommandStatus(s) for s in response.body_as_json]
 
 
-def configure_interior_unit(
+async def configure_interior_unit(
     token: str,
     family_id: int,
     interior_unit: InteriorUnit,
@@ -65,7 +67,7 @@ def configure_interior_unit(
     )
 
     logger.debug("Configure interior unit familiy_id=%s : %s", family_id, command)
-    response = perform_request(
+    response = await perform_request(
         "PUT",
         f"/rac/basic-idu-control/general-control-command/{command.id}?familyId={family_id}",
         command.__dict__,
@@ -81,16 +83,16 @@ def configure_interior_unit(
     return CommandResponse(response.body_as_json)
 
 
-def request_refresh_interior_unit_state(
+async def request_refresh_interior_unit_state(
     token: str, rac_id: int, family_id: int, host: str = DEFAULT_REST_API_HOST, port: int = 443
 ) -> None:
     logger.debug("Request refresh interior unit state for rac id=%s, family_id=%s", rac_id, family_id)
-    perform_request("PUT", f"/rac/status/{rac_id}?familyId={family_id}", token=token, host=host, port=port)
+    await perform_request("PUT", f"/rac/status/{rac_id}?familyId={family_id}", token=token, host=host, port=port)
 
 
-def set_power(token: str, rac_id: str, power: Power, host: str = DEFAULT_REST_API_HOST, port: int = 443) -> None:
+async def set_power(token: str, rac_id: str, power: Power, host: str = DEFAULT_REST_API_HOST, port: int = 443) -> None:
     logger.debug("Set power rac_id=%s, power=%s", rac_id, power)
-    perform_request(
+    await perform_request(
         "PUT",
         f"/rac/basic-idu-control/switch-on-off/{rac_id}",
         {
@@ -102,7 +104,7 @@ def set_power(token: str, rac_id: str, power: Power, host: str = DEFAULT_REST_AP
     )
 
 
-def set_power_all(
+async def set_power_all(
     token: str,
     family_id: str,
     power: Power,
@@ -121,7 +123,7 @@ def set_power_all(
     units = [_GeneralControlCommand(iu.copy(power=power)).__dict__ for iu in interior_units]
 
     logger.debug("Set power all power=%s for %s", power, units)
-    response = perform_request(
+    response = await perform_request(
         "PUT", url, units, do_not_raise_exception_on=(200, 207), token=token, host=host, port=port
     )
 

@@ -1,7 +1,9 @@
+import pytest
 from pytest_httpserver import HTTPServer
 import aircloudy.api.iam
 
-def test_perform_login(httpserver: HTTPServer):
+@pytest.mark.asyncio
+async def test_perform_login(httpserver: HTTPServer):
     httpserver.expect_request(
         "/iam/auth/sign-in",
         "POST",
@@ -17,7 +19,7 @@ def test_perform_login(httpserver: HTTPServer):
         "access_token_expires_in": 10,
         "refresh_token_expires_in": 20,
     })
-    res = aircloudy.api.iam.perform_login("foo@example.com", "supersecret", httpserver.host, httpserver.port)
+    res = await aircloudy.api.iam.perform_login("foo@example.com", "supersecret", httpserver.host, httpserver.port)
     assert res.token == "xxxxToken"
     assert res.refreshToken == "xxxxRefresh"
     assert res.newUser == True
@@ -25,8 +27,8 @@ def test_perform_login(httpserver: HTTPServer):
     assert res.access_token_expires_in == 10
     assert res.refresh_token_expires_in == 20
 
-
-def test_fetch_profile(httpserver: HTTPServer):
+@pytest.mark.asyncio
+async def test_fetch_profile(httpserver: HTTPServer):
     httpserver.expect_request(
         "/iam/user/v2/who-am-i",
         "GET",
@@ -69,7 +71,7 @@ def test_fetch_profile(httpserver: HTTPServer):
             "outOfHomeLongitude": 0.3,
         },
     })
-    res = aircloudy.api.iam.fetch_profile("xxxxToken", httpserver.host, httpserver.port)
+    res = await aircloudy.api.iam.fetch_profile("xxxxToken", httpserver.host, httpserver.port)
     assert res.id == 1
     assert res.familyId == 2
     assert res.firstName == "Alice"

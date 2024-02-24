@@ -14,6 +14,7 @@ Power = Literal["ON", "OFF"]
 
 # Don't know what is DRY_COOL but it exist in Android client source code
 OperatingMode = Literal["AUTO", "COOLING", "DE_HUMIDIFY", "DRY_COOL", "FAN", "HEATING"]
+TemperatureUnit = Literal["CELSIUS", "FAHRENHEIT"]
 
 ScheduleType = Literal[
     "SCHEDULE_DISABLED",

@@ -1,9 +1,10 @@
+import pytest
 from pytest_httpserver import HTTPServer
 
 import aircloudy.api
 
-
-def test_get_interior_units(httpserver: HTTPServer):
+@pytest.mark.asyncio
+async def test_get_interior_units(httpserver: HTTPServer):
     httpserver.expect_request(
         "/rac/ownership/groups/4444/idu-list",
         "GET",
@@ -56,7 +57,7 @@ def test_get_interior_units(httpserver: HTTPServer):
          "scheduleType": "SCHEDULE_DISABLED",
          "online": True},
     ])
-    res = aircloudy.api.get_interior_units("xxxxToken", 4444, httpserver.host, httpserver.port)
+    res = await aircloudy.api.get_interior_units("xxxxToken", 4444, httpserver.host, httpserver.port)
     assert res[0].id == 1234
     assert res[0].name == "Salon"
     assert res[0].mode == "HEATING"
