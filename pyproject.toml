@@ -1,14 +1,19 @@
 [tool.poetry]
 name = "aircloudy"
-version = "0.1.0"
+version = "0.1.1"
 description = "A library to pilot hitachi aircloud AC"
 keywords = ["aircloud", "SPX-WFG"]
 authors = ["Yann Le Moigne <ylemoigne@javatic.fr>"]
 readme = "README.md"
 #license = {file = "LICENSE.txt"}
+homepage = "https://github.com/ylemoigne/aircloudy"
+repository = "https://github.com/ylemoigne/aircloudy"
+classifiers = [
+    "Intended Audience :: Developers",
+]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 websockets = "^12.0"
 
 [tool.poetry.group.test.dependencies]
