@@ -142,7 +142,7 @@ class NotificationsWebsocket:
                 await self._notification_socket.send("\r\n")
                 await asyncio.sleep(10)
             except Exception as e:
-                logger.error("Unexpected error while sending client heartbeat : %s", e)
+                logger.error("Unexpected error while sending client heartbeat : %s", traceback.format_exc())
                 raise e
 
     async def _handle_incoming_frame_loop(self) -> None:
@@ -189,7 +189,7 @@ class NotificationsWebsocket:
                 asyncio.create_task(self.close())
                 return
             except Exception as e:
-                logger.error("Unexpected error while handling incoming message : %s", traceback.format_exc(e))
+                logger.error("Unexpected error while handling incoming message : %s", traceback.format_exc())
                 raise e
 
     async def close(self) -> None:
