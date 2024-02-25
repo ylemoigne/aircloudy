@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import traceback
 import uuid
 from asyncio import Task
 from types import TracebackType
@@ -188,7 +189,7 @@ class NotificationsWebsocket:
                 asyncio.create_task(self.close())
                 return
             except Exception as e:
-                logger.error("Unexpected error while handling incoming message : %s", e)
+                logger.error("Unexpected error while handling incoming message : %s", traceback.format_exc(e))
                 raise e
 
     async def close(self) -> None:
