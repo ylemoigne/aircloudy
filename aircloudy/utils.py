@@ -1,8 +1,19 @@
+from __future__ import annotations
+
 import asyncio
-from typing import Optional
+from asyncio import Future
+from typing import Awaitable, TypeVar
+
+T = TypeVar("T")
 
 
-def to_int(value: Optional[str]) -> Optional[int]:
+def awaitable(value: T) -> Awaitable[T]:
+    f: Future[T] = asyncio.Future()
+    f.set_result(value)
+    return f
+
+
+def to_int(value: str | None) -> int | None:
     return int(value) if value else None
 
 

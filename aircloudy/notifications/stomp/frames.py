@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import json
 from io import StringIO
-from typing import Optional
 
 from .frames_models import StompFrame
 
@@ -17,7 +18,7 @@ class WebsocketMessageParseException(Exception):
         self.line = line
 
 
-def parse_stomp_frame(content: str) -> Optional[StompFrame]:
+def parse_stomp_frame(content: str) -> StompFrame | None:
     io = StringIO(content)
 
     first_line = io.readline()

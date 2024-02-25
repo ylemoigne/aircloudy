@@ -1,3 +1,4 @@
+from .auth_manager import AuthManager
 from .command_manager import CommandManager
 from .iam import fetch_profile, perform_login
 from .iam_models import AuthenticationSuccess, UserProfile

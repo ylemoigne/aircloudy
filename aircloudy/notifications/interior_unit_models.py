@@ -78,7 +78,10 @@ class InteriorUnitNotification:
             self.fanSpeed,
             self.fanSwing,
             self.roomTemperature,
+            self.relativeTemperature,
             self.updatedAt,
             self.online,
             self.lastOnlineUpdatedAt,
+            self.model,
+            str(self.modelTypeId),
         )

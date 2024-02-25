@@ -25,12 +25,12 @@ pip install aircloudy
 ## Usage
 
 ```python
+from __future__ import annotations
 import asyncio
-from typing import Tuple, Optional
 from aircloudy import HitachiAirCloud, InteriorUnit, compute_interior_unit_diff_description
 
 
-def print_changes(dict: dict[int, Tuple[Optional[InteriorUnit], Optional[InteriorUnit]]]) -> None:
+def print_changes(dict: dict[int, tuple[InteriorUnit|None, InteriorUnit|None]]) -> None:
     for (id, change) in dict.items():
         print(f"Change on interior unit {id}: "+compute_interior_unit_diff_description(change[0], change[1]))
 
@@ -42,8 +42,8 @@ async def main() -> None:
         if unit_bureau is None:
             raise Exception("No unit named `Bureau`")
 
-        await ac.set_power(unit_bureau, "ON")
-        await ac.set(unit_bureau.copy(requested_temperature=21, fan_speed="LV3"))
+        await ac.set(unit_bureau.id, "ON")
+        await ac.set(unit_bureau.id, requested_temperature=21, fan_speed="LV3")
 
         await asyncio.sleep(30)
 

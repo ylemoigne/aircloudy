@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from __future__ import annotations
 
 from aircloudy.utils import to_int
 
@@ -7,9 +7,9 @@ from .frames_models import StompFrame
 
 class ConnectedFrame(StompFrame):
     version: str
-    heart_beat: Optional[Tuple[int, int]]
-    session: Optional[str]
-    server: Optional[str]
+    heart_beat: tuple[int, int] | None
+    session: str | None
+    server: str | None
 
     def __init__(self, frame: StompFrame) -> None:
         StompFrame.__init__(
@@ -33,9 +33,9 @@ class MessageFrame(StompFrame):
     destination: str
     message_id: str
     subscription: str
-    ack: Optional[str]
-    content_type: Optional[str]
-    content_length: Optional[int]
+    ack: str | None
+    content_type: str | None
+    content_length: int | None
 
     def __init__(self, frame: StompFrame) -> None:
         StompFrame.__init__(
@@ -66,9 +66,9 @@ class ReceiptFrame(StompFrame):
 
 
 class ErrorFrame(StompFrame):
-    error_message: Optional[str]
-    content_type: Optional[str]
-    content_length: Optional[int]
+    error_message: str | None
+    content_type: str | None
+    content_length: int | None
 
     def __init__(self, frame: StompFrame) -> None:
         StompFrame.__init__(

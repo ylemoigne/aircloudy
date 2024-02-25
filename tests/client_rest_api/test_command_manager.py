@@ -5,6 +5,7 @@ from pytest_httpserver import HTTPServer
 
 import aircloudy.api
 import aircloudy.api.rac
+from aircloudy.utils import awaitable
 
 
 @pytest.mark.asyncio
@@ -62,7 +63,7 @@ async def test_command_manager(httpserver: HTTPServer):
          "status": "DONE"},
     ])
 
-    command_manager = aircloudy.api.CommandManager(lambda: "tokenXXX", host=httpserver.host, port=httpserver.port)
+    command_manager = aircloudy.api.CommandManager(lambda: awaitable("tokenXXX"), host=httpserver.host, port=httpserver.port)
     command_manager.add_command_watch(aircloudy.api.CommandResponse({"commandId": "a1", "thingId": "fooBar"}))
     await asyncio.sleep(2)
     res = await command_manager.wait_ack(aircloudy.api.CommandResponse({"commandId": "a2", "thingId": "youp"}))

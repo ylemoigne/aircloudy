@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import List, Optional
 
 from aircloudy.contants import CommandState, FanSpeed, FanSwing, OperatingMode, Power, ScheduleType
 from aircloudy.interior_unit_models import InteriorUnit
@@ -24,7 +25,7 @@ class CommandStatus:
 class PowerResult:
     racId: int
     success: bool
-    errorMessage: Optional[str]
+    errorMessage: str | None
     errorCode: int
     commandResponse: CommandResponse
 
@@ -34,13 +35,12 @@ class PowerResult:
 
 class PowerAllResponse:
     allSucceeded: bool
-    resultSet: List[PowerResult]
+    resultSet: list[PowerResult]
 
     def __init__(self, data: dict) -> None:
         self.__dict__.update(data)
 
 
-@dataclass
 class _GeneralControlCommand:
     id: int
     power: Power
@@ -50,16 +50,27 @@ class _GeneralControlCommand:
     fanSpeed: FanSpeed
     fanSwing: FanSwing
 
-    def __init__(self, interior_unit: InteriorUnit) -> None:
+    def __init__(
+        self,
+        interior_unit: InteriorUnit,
+        power: Power | None = None,
+        mode: OperatingMode | None = None,
+        requested_temperature: float | None = None,
+        humidity: int | None = None,
+        fan_speed: FanSpeed | None = None,
+        fan_swing: FanSwing | None = None,
+    ) -> None:
         self.id = interior_unit.id
-        self.power = interior_unit.power
-        self.mode = interior_unit.mode
-        self.iduTemperature = interior_unit.requested_temperature
-        # Should be something like `self.humidity = interior_unit.humidity`
+        self.power = power if power is not None else interior_unit.power
+        self.mode = mode if mode is not None else interior_unit.mode
+        self.iduTemperature = (
+            requested_temperature if requested_temperature is not None else interior_unit.requested_temperature
+        )
+        # Should be something like `else interior_unit.humidity`
         # but some api return me humidity=126 and this is not a legal value for control
-        self.humidity = 50
-        self.fanSpeed = interior_unit.fan_speed
-        self.fanSwing = interior_unit.fan_swing
+        self.humidity = humidity if humidity is not None else 50
+        self.fanSpeed = fan_speed if fan_speed is not None else interior_unit.fan_speed
+        self.fanSwing = fan_swing if fan_swing is not None else interior_unit.fan_swing
 
 
 @dataclass
@@ -102,7 +113,10 @@ class _InteriorUnitRest:
             self.fanSpeed,
             self.fanSwing,
             self.roomTemperature,
+            self.relativeTemperature,
             self.updatedAt,
             self.online,
             self.lastOnlineUpdatedAt,
+            self.model,
+            str(self.racTypeId),
         )

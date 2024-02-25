@@ -1,10 +1,13 @@
 import json
+import logging
 
-from aircloudy.contants import DEFAULT_REST_API_HOST
+from aircloudy.contants import DEFAULT_REST_API_HOST, TokenSupplier
 
 from ..errors import AuthenticationFailedException
 from .http_client import perform_request
-from .iam_models import AuthenticationSuccess, UserProfile
+from .iam_models import AuthenticationSuccess, TokenRefreshSuccess, UserProfile
+
+logger = logging.getLogger(__name__)
 
 
 async def perform_login(
@@ -13,7 +16,7 @@ async def perform_login(
     response = await perform_request(
         "POST",
         "/iam/auth/sign-in",
-        {
+        body={
             "email": email,
             "password": password,
         },
@@ -28,7 +31,26 @@ async def perform_login(
     return json.loads(response.body, object_hook=AuthenticationSuccess)
 
 
-async def fetch_profile(token: str, host: str = DEFAULT_REST_API_HOST, port: int = 443) -> UserProfile:
-    response = await perform_request("GET", "/iam/user/v2/who-am-i", token=token, host=host, port=port)
+async def fetch_profile(
+    token_supplier: TokenSupplier, host: str = DEFAULT_REST_API_HOST, port: int = 443
+) -> UserProfile:
+    response = await perform_request(
+        "GET", "/iam/user/v2/who-am-i", token_supplier=token_supplier, host=host, port=port
+    )
 
     return json.loads(response.body, object_hook=UserProfile)
+
+
+async def refresh_token(
+    refresh_token_supplier: TokenSupplier, host: str = DEFAULT_REST_API_HOST, port: int = 443
+) -> TokenRefreshSuccess:
+    response = await perform_request(
+        "POST",
+        "/iam/auth/refresh-token",
+        additional_headers={"isRefreshToken": "true"},
+        token_supplier=refresh_token_supplier,
+        host=host,
+        port=port,
+    )
+
+    return json.loads(response.body, object_hook=TokenRefreshSuccess)

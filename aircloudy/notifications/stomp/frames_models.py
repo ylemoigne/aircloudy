@@ -1,12 +1,12 @@
-from typing import Optional
+from __future__ import annotations
 
 
 class StompFrame:
     message: str
     headers: dict[str, str]
-    body: Optional[dict] = None
+    body: dict | None = None
 
-    def __init__(self, message: str, headers: dict[str, str], body: Optional[dict] = None) -> None:
+    def __init__(self, message: str, headers: dict[str, str], body: dict | None = None) -> None:
         self.message = message
         self.headers = headers
         self.body = body

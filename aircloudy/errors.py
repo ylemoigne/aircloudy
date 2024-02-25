@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import json
-from typing import Optional
 
 
 class IllegalStateException(Exception):
@@ -10,8 +11,8 @@ class IllegalStateException(Exception):
 class TooManyRequestsException(Exception):
     error_type: str
     error_desc: str
-    error_stack_trace: Optional[str]
-    error_code: Optional[str]
+    error_stack_trace: str | None
+    error_code: str | None
 
     def __init__(self, body: str) -> None:
         data = json.loads(body)

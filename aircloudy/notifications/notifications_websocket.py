@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import uuid
 from asyncio import Task
 from types import TracebackType
-from typing import Callable, List, Optional, Self, Type
+from typing import Callable, Self
 
 import websockets
 
-from aircloudy.contants import SSL_CONTEXT
+from aircloudy.contants import SSL_CONTEXT, TokenSupplier
 from aircloudy.errors import IllegalStateException
 from aircloudy.utils import current_task_is_running
 
@@ -19,30 +21,30 @@ logger = logging.getLogger(__name__)
 
 
 class NotificationsWebsocket:
-    notification_host: str
-    token_supplier: Callable[[], str]
-    user_id: int
-    family_id: int
-    state_callback: Callable[[List[InteriorUnit]], None]
-    on_connection_closed_by_server: Optional[Callable[[websockets.ConnectionClosed], None]]
+    _notification_host: str
+    _token_supplier: TokenSupplier
+    _user_id: int
+    _family_id: int
+    state_callback: Callable[[list[InteriorUnit]], None]
+    on_connection_closed_by_server: Callable[[websockets.ConnectionClosed], None] | None
 
-    notification_socket: Optional[websockets.WebSocketClientProtocol] = None
-    task_send_client_heartbeat: Optional[Task] = None
-    task_handle_incoming_frame: Optional[Task] = None
+    _notification_socket: websockets.WebSocketClientProtocol | None = None
+    _task_send_client_heartbeat: Task | None = None
+    _task_handle_incoming_frame: Task | None = None
 
     def __init__(
         self,
         notification_host: str,
-        token_supplier: Callable[[], str],
+        token_supplier: TokenSupplier,
         user_id: int,
         family_id: int,
-        state_callback: Callable[[List[InteriorUnit]], None],
-        on_connection_closed_by_server: Optional[Callable[[websockets.ConnectionClosed], None]] = None,
+        state_callback: Callable[[list[InteriorUnit]], None],
+        on_connection_closed_by_server: Callable[[websockets.ConnectionClosed], None] | None = None,
     ) -> None:
-        self.notification_host = notification_host
-        self.token_supplier = token_supplier
-        self.user_id = user_id
-        self.family_id = family_id
+        self._notification_host = notification_host
+        self._token_supplier = token_supplier
+        self._user_id = user_id
+        self._family_id = family_id
         self.state_callback = state_callback
         self.on_connection_closed_by_server = on_connection_closed_by_server
         self.notification_subscription_id = uuid.uuid4()
@@ -53,29 +55,31 @@ class NotificationsWebsocket:
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> bool:
         await self.close()
         return False
 
     @property
     def is_open(self) -> bool:
-        return self.notification_socket is not None
+        return self._notification_socket is not None
 
     async def connect(self) -> None:
         if self.is_open:
             raise Exception(__name__ + " already connected")
 
-        websocket_url = f"wss://{self.notification_host}/rac-notifications/websocket"
+        websocket_url = f"wss://{self._notification_host}/rac-notifications/websocket"
         logger.info("Open websocket to %s", websocket_url)
-        self.notification_socket = await websockets.connect(websocket_url, ssl=SSL_CONTEXT)
+        self._notification_socket = await websockets.connect(websocket_url, ssl=SSL_CONTEXT)
         logger.debug("Send CONNECT stomp frame")
-        await self.notification_socket.send(hitachi_frame_models.ConnectFrame(self.token_supplier()).get_frame())
+        await self._notification_socket.send(
+            hitachi_frame_models.ConnectFrame(await self._token_supplier()).get_frame()
+        )
 
         logger.debug("Wait first server frame (expect CONNECTED frame)")
-        frame_data = await self.notification_socket.recv()
+        frame_data = await self._notification_socket.recv()
         if isinstance(frame_data, bytes):
             raise Exception("Binary frame was unexpected")
         first_server_frame = stomp.parse_server_frame(frame_data)
@@ -83,66 +87,68 @@ class NotificationsWebsocket:
             raise Exception(f"Excepted stomp.ConnectedFrame but got {first_server_frame}")
 
         logger.debug("Start send client heartbeat task")
-        self.task_send_client_heartbeat = asyncio.create_task(self._send_client_heartbeat_loop())
+        self._task_send_client_heartbeat = asyncio.create_task(self._send_client_heartbeat_loop())
         logger.debug("Start handle incoming frame task")
-        self.task_handle_incoming_frame = asyncio.create_task(self._handle_incoming_frame_loop())
+        self._task_handle_incoming_frame = asyncio.create_task(self._handle_incoming_frame_loop())
 
     async def subscribe(self) -> uuid.UUID:
-        if self.notification_socket is None:
+        if self._notification_socket is None:
             raise IllegalStateException(__name__ + " is not connected")
 
         subscription_id = uuid.uuid4()
         logger.info(
             "Create subscription %s to notifications from user_id=%s, family_id=%s",
             subscription_id,
-            self.user_id,
-            self.family_id,
+            self._user_id,
+            self._family_id,
         )
-        payload = hitachi_frame_models.SubscribeFrame(subscription_id, self.user_id, self.family_id)
-        await self.notification_socket.send(payload.get_frame())
+        payload = hitachi_frame_models.SubscribeFrame(subscription_id, self._user_id, self._family_id)
+        await self._notification_socket.send(payload.get_frame())
         return subscription_id
 
     async def unsubscribe(self, subscription_id: uuid.UUID) -> None:
-        if self.notification_socket is None:
+        if self._notification_socket is None:
             raise IllegalStateException(__name__ + " is not connected")
 
         logger.info("Remove subscription %s", subscription_id)
         payload = hitachi_frame_models.UnsubscribeFrame(subscription_id)
-        await self.notification_socket.send(payload.get_frame())
+        await self._notification_socket.send(payload.get_frame())
 
     async def refresh_all(self) -> None:
-        if self.notification_socket is None:
+        if self._notification_socket is None:
             raise IllegalStateException(__name__ + " is not connected")
 
         logger.info("Request refresh all")
-        payload = hitachi_frame_models.RefreshAllInteriorUnitFrame(self.token_supplier(), self.user_id, self.family_id)
-        await self.notification_socket.send(payload.get_frame())
+        payload = hitachi_frame_models.RefreshAllInteriorUnitFrame(
+            await self._token_supplier(), self._user_id, self._family_id
+        )
+        await self._notification_socket.send(payload.get_frame())
 
     async def refresh(self, rac_id: int) -> None:
-        if self.notification_socket is None:
+        if self._notification_socket is None:
             raise IllegalStateException(__name__ + " is not connected")
 
         logger.info("Request refresh rac_id=%d", rac_id)
         payload = hitachi_frame_models.RefreshInteriorUnitFrame(
-            self.token_supplier(), self.user_id, self.family_id, rac_id
+            await self._token_supplier(), self._user_id, self._family_id, rac_id
         )
-        await self.notification_socket.send(payload.get_frame())
+        await self._notification_socket.send(payload.get_frame())
 
     async def _send_client_heartbeat_loop(self) -> None:
-        while current_task_is_running() and self.notification_socket is not None:
+        while current_task_is_running() and self._notification_socket is not None:
             try:
                 logger.debug("Send heartbeat")
-                await self.notification_socket.send("\r\n")
+                await self._notification_socket.send("\r\n")
                 await asyncio.sleep(10)
             except Exception as e:
                 logger.error("Unexpected error while sending client heartbeat : %s", e)
                 raise e
 
     async def _handle_incoming_frame_loop(self) -> None:
-        while current_task_is_running() and self.notification_socket is not None:
+        while current_task_is_running() and self._notification_socket is not None:
             try:
                 logger.debug("Waiting for message")
-                data = await self.notification_socket.recv()
+                data = await self._notification_socket.recv()
                 if isinstance(data, bytes):
                     raise Exception("Binary frame was unexpected")
 
@@ -187,24 +193,24 @@ class NotificationsWebsocket:
 
     async def close(self) -> None:
         try:
-            if self.task_send_client_heartbeat is not None:
-                self.task_send_client_heartbeat.cancel()
+            if self._task_send_client_heartbeat is not None:
+                self._task_send_client_heartbeat.cancel()
                 try:
-                    await self.task_send_client_heartbeat
+                    await self._task_send_client_heartbeat
                 except asyncio.exceptions.CancelledError as e:
                     logger.debug("Canceled `send client heartbeat` task : %s", e)
 
-            if self.task_handle_incoming_frame is not None:
-                self.task_handle_incoming_frame.cancel()
+            if self._task_handle_incoming_frame is not None:
+                self._task_handle_incoming_frame.cancel()
                 try:
-                    await self.task_handle_incoming_frame
+                    await self._task_handle_incoming_frame
                 except asyncio.exceptions.CancelledError as e:
                     logger.debug("Canceled `handle incoming frame` task : %s", e)
 
-            if self.notification_socket is not None:
-                await self.notification_socket.close()
+            if self._notification_socket is not None:
+                await self._notification_socket.close()
                 logger.info("Websocket closed")
         finally:
-            self.notification_socket = None
-            self.task_handle_incoming_frame = None
-            self.task_send_client_heartbeat = None
+            self._notification_socket = None
+            self._task_handle_incoming_frame = None
+            self._task_send_client_heartbeat = None

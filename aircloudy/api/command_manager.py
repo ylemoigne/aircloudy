@@ -1,18 +1,19 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from asyncio import Task
-from typing import Callable, Optional
 
 from aircloudy.api.rac import get_command_status
 from aircloudy.api.rac_models import CommandResponse, CommandStatus
-from aircloudy.contants import DEFAULT_REST_API_HOST, DEFAULT_WAIT_DONE, CommandState
+from aircloudy.contants import DEFAULT_REST_API_HOST, DEFAULT_WAIT_DONE, CommandState, TokenSupplier
 from aircloudy.utils import current_task_is_running
 
 logger = logging.getLogger(__name__)
 
 
 class CommandManager:
-    _token_supplier: Callable[[], str]
+    _token_supplier: TokenSupplier
     _update_interval: int
     _api_host: str
     _port: int
@@ -20,11 +21,11 @@ class CommandManager:
     _commands: dict[str, CommandResponse]
     _commands_status: dict[str, CommandStatus]
     _events: dict[str, asyncio.Event]
-    _task_fetch_command_status: Optional[Task]
+    _task_fetch_command_status: Task | None
 
     def __init__(
         self,
-        token_supplier: Callable[[], str],
+        token_supplier: TokenSupplier,
         update_interval: int = 2,
         host: str = DEFAULT_REST_API_HOST,
         port: int = 443,
@@ -75,7 +76,7 @@ class CommandManager:
                 self._commands_status = {
                     s.commandId: s
                     for s in await get_command_status(
-                        self._token_supplier(), list(self._commands.values()), self._api_host, self._port
+                        self._token_supplier, list(self._commands.values()), self._api_host, self._port
                     )
                 }
                 for command_id, event in self._events.items():

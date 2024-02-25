@@ -1,9 +1,32 @@
+from datetime import datetime, timedelta
+
+import jwt
 import pytest
 from pytest_httpserver import HTTPServer
 import aircloudy.api.iam
+from aircloudy.utils import awaitable
+
 
 @pytest.mark.asyncio
 async def test_perform_login(httpserver: HTTPServer):
+    auth_token = jwt.encode({
+        "sub": "foo",
+        "scopes": ["auth"],
+        "iss": "test-fixture",
+        "aud": "test-consumer",
+        "iat": datetime.now(),
+        "exp": datetime.now()+timedelta(hours=1)
+    }, "secret")
+    refresh_token = jwt.encode({
+        "sub": "foo",
+        "scopes": ["refresh"],
+        "iss": "test-fixture",
+        "aud": "test-consumer",
+        "jti": "lala",
+        "iat": datetime.now(),
+        "exp": datetime.now()+timedelta(hours=1)
+    }, "secret")
+
     httpserver.expect_request(
         "/iam/auth/sign-in",
         "POST",
@@ -12,18 +35,18 @@ async def test_perform_login(httpserver: HTTPServer):
             "password": "supersecret",
         },
     ).respond_with_json({
-        "token": "xxxxToken",
-        "refreshToken": "xxxxRefresh",
+        "token": auth_token,
+        "refreshToken": refresh_token,
         "newUser": True,
         "errorState": "NONE",
         "access_token_expires_in": 10,
         "refresh_token_expires_in": 20,
     })
     res = await aircloudy.api.iam.perform_login("foo@example.com", "supersecret", httpserver.host, httpserver.port)
-    assert res.token == "xxxxToken"
-    assert res.refreshToken == "xxxxRefresh"
-    assert res.newUser == True
-    assert res.errorState == "NONE"
+    assert res.token.value == auth_token
+    assert res.refresh_token.value == refresh_token
+    assert res.new_user == True
+    assert res.error_state == "NONE"
     assert res.access_token_expires_in == 10
     assert res.refresh_token_expires_in == 20
 
@@ -71,7 +94,7 @@ async def test_fetch_profile(httpserver: HTTPServer):
             "outOfHomeLongitude": 0.3,
         },
     })
-    res = await aircloudy.api.iam.fetch_profile("xxxxToken", httpserver.host, httpserver.port)
+    res = await aircloudy.api.iam.fetch_profile(lambda : awaitable("xxxxToken"), httpserver.host, httpserver.port)
     assert res.id == 1
     assert res.familyId == 2
     assert res.firstName == "Alice"

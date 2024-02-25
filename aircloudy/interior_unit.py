@@ -1,9 +1,9 @@
-from typing import List, Optional
+from __future__ import annotations
 
 from .interior_unit_models import InteriorUnit
 
 
-def compute_interior_unit_diff_description(old: Optional[InteriorUnit], new: Optional[InteriorUnit]) -> str:
+def compute_interior_unit_diff_description(old: InteriorUnit | None, new: InteriorUnit | None) -> str:
     if old == new:
         return "No change"
 
@@ -13,7 +13,7 @@ def compute_interior_unit_diff_description(old: Optional[InteriorUnit], new: Opt
     if new is None:
         return f"Deleted {old.id}"
 
-    changes: List[str] = []
+    changes: list[str] = []
     if old.id != new.id:
         changes.append(f"id: {old.id}=>{new.id}")
     if old.name != new.name:
@@ -31,6 +31,8 @@ def compute_interior_unit_diff_description(old: Optional[InteriorUnit], new: Opt
     if old.fan_swing != new.fan_swing:
         changes.append(f"fan_swing: {old.fan_swing}=>{new.fan_swing}")
     if old.room_temperature != new.room_temperature:
+        changes.append(f"room_temperature: {old.room_temperature}=>{new.room_temperature}")
+    if old.relative_temperature != new.relative_temperature:
         changes.append(f"room_temperature: {old.room_temperature}=>{new.room_temperature}")
     if old.updated_at != new.updated_at:
         changes.append(f"updated_at: {old.updated_at}=>{new.updated_at}")
