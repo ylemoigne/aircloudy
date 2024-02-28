@@ -8,5 +8,4 @@ from .errors import (
     InteriorUnitNotFoundException,
     TooManyRequestsException,
 )
-from .interior_unit import compute_interior_unit_diff_description
-from .interior_unit_models import InteriorUnit
+from .interior_unit import InteriorUnit

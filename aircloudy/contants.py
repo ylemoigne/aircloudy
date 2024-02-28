@@ -4,11 +4,10 @@ from typing import Awaitable, Callable, Literal, TypeAlias
 SSL_CONTEXT = ssl._create_unverified_context()
 DEFAULT_REST_API_HOST = "api-global-prod.aircloudhome.com"
 DEFAULT_STOMP_WEBSOCKET_HOST = "notification-global-prod.aircloudhome.com"
-DEFAULT_WAIT_DONE = 10
 
 TokenSupplier: TypeAlias = Callable[[], Awaitable[str]]
 
-CommandState: TypeAlias = Literal["SENDING", "INCOMPLETE", "DONE"]
+ApiCommandState: TypeAlias = Literal["SENDING", "INCOMPLETE", "DONE"]
 
 FanSwing: TypeAlias = Literal["OFF", "VERTICAL", "HORIZONTAL", "BOTH", "AUTO"]
 FanSpeed: TypeAlias = Literal["LV1", "LV2", "LV3", "LV4", "LV5", "AUTO"]

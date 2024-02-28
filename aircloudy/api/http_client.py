@@ -43,7 +43,7 @@ async def perform_request(
     host: str = DEFAULT_REST_API_HOST,
     port: int = 443,
 ) -> HttpResponse:
-    logger.debug("Perform %s %s on %s:%d", method, url, host, port)
+    logger.debug("Perform %s %s on %s:%d, %s", method, url, host, port, body)
     try:
         async with (
             aiohttp.ClientSession(f"https://{host}:{port}", connector=TCPConnector(ssl=SSL_CONTEXT)) as session,
@@ -56,7 +56,7 @@ async def perform_request(
             logger.debug("Response status=%d body=%s", response_status, response_body)
 
             if response_status not in do_not_raise_exception_on:
-                raise Exception(f"Call failed (status={response_status} body={response_body}")
+                raise Exception(f"Call failed (status={response_status} body={response_body})")
 
             return HttpResponse(response_status, response_body)
     except aiohttp.client_exceptions.ClientConnectorError as e:

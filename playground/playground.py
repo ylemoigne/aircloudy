@@ -1,12 +1,15 @@
 from __future__ import annotations
+
 import asyncio
+import datetime
 import json
 import logging.config
-from datetime import datetime, timezone
+import uuid
 
-import tzlocal
-
-from aircloudy import HitachiAirCloud, InteriorUnit, compute_interior_unit_diff_description
+import aircloudy
+import aircloudy.api
+from aircloudy import HitachiAirCloud
+from aircloudy.interior_unit_changes import InteriorUnitChanges
 
 logging.config.dictConfig(
     {
@@ -32,9 +35,16 @@ logging.config.dictConfig(
                 "handlers": ["console"],
                 "propagate": True,
             },
+            "__main__": {
+                "level": "DEBUG",
+                "handlers": ["console"],
+                "propagate": True,
+            },
         },
     }
 )
+# logging.basicConfig(level="INFO")
+logger = logging.getLogger(__name__)
 
 with open("../.secrets/playground_credentials.json", "r") as f:
     data = json.loads(f.read())
@@ -42,17 +52,28 @@ with open("../.secrets/playground_credentials.json", "r") as f:
     credentials_password = data["password"]
 
 
-def print_changes(changes: dict[int, tuple[InteriorUnit|None, InteriorUnit|None]]) -> None:
+def print_changes(changes: dict[int, InteriorUnitChanges]) -> None:
     for id, change in changes.items():
-        print(f"Change on interior unit {id}: " + compute_interior_unit_diff_description(change[0], change[1]))
+        print(
+            f"Change on interior unit {id}: " + str(change))
 
 
 async def main() -> None:
     async with HitachiAirCloud(credentials_email, credentials_password) as ac:
         ac.on_change = print_changes
 
-        while True:
-            await asyncio.sleep(30)
 
+        bureau = [iu for iu in ac.interior_units if iu.name == "Bureau"][0]
+        print("0", bureau.requested_temperature, bureau.fan_speed, bureau.fan_swing, bureau.power)
+        await bureau.send_command(requested_temperature=18)
+        print("1", bureau.requested_temperature, bureau.fan_speed, bureau.fan_swing, bureau.power)
+        await bureau.send_command(requested_temperature=19, fan_speed="LV1")
+        print("2", bureau.requested_temperature, bureau.fan_speed, bureau.fan_swing, bureau.power)
+        await bureau.send_command(requested_temperature=20, fan_swing="HORIZONTAL")
+        print("3", bureau.requested_temperature, bureau.fan_speed, bureau.fan_swing, bureau.power)
+        await bureau.send_command(requested_temperature=21, power="OFF")
+        print("4", bureau.requested_temperature, bureau.fan_speed, bureau.fan_swing, bureau.power)
+        await asyncio.sleep(60)
+    print("Ac closed")
 
 asyncio.run(main())

@@ -6,17 +6,16 @@ import traceback
 import uuid
 from asyncio import Task
 from types import TracebackType
-from typing import Callable, Self
+from typing import Awaitable, Callable, Self
 
 import websockets
 
 from aircloudy.contants import SSL_CONTEXT, TokenSupplier
 from aircloudy.errors import IllegalStateException
-from aircloudy.utils import current_task_is_running
+from aircloudy.utils import current_task_is_running, utc_datetime_from_millis
 
-from ..interior_unit_models import InteriorUnit
+from ..interior_unit_base import InteriorUnitBase
 from . import hitachi_frame_models, stomp
-from .interior_unit_models import InteriorUnitNotification
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +25,12 @@ class NotificationsWebsocket:
     _token_supplier: TokenSupplier
     _user_id: int
     _family_id: int
-    state_callback: Callable[[list[InteriorUnit]], None]
-    on_connection_closed_by_server: Callable[[websockets.ConnectionClosed], None] | None
+    state_callback: Callable[[list[InteriorUnitBase], bool], None]
+    on_unexpected_connection_close: Callable[[websockets.ConnectionClosed], Awaitable[None]] | None
 
     _notification_socket: websockets.WebSocketClientProtocol | None = None
-    _task_send_client_heartbeat: Task | None = None
-    _task_handle_incoming_frame: Task | None = None
+    _handle_connection_task: Task | None
+    _closed_by_client: bool
 
     def __init__(
         self,
@@ -39,16 +38,17 @@ class NotificationsWebsocket:
         token_supplier: TokenSupplier,
         user_id: int,
         family_id: int,
-        state_callback: Callable[[list[InteriorUnit]], None],
-        on_connection_closed_by_server: Callable[[websockets.ConnectionClosed], None] | None = None,
+        state_callback: Callable[[list[InteriorUnitBase], bool], None],
+        on_unexpected_connection_close: Callable[[websockets.ConnectionClosed], Awaitable[None]] | None = None,
     ) -> None:
         self._notification_host = notification_host
         self._token_supplier = token_supplier
         self._user_id = user_id
         self._family_id = family_id
         self.state_callback = state_callback
-        self.on_connection_closed_by_server = on_connection_closed_by_server
+        self.on_unexpected_connection_close = on_unexpected_connection_close
         self.notification_subscription_id = uuid.uuid4()
+        self._closed_by_client = True
 
     async def __aenter__(self) -> Self:
         await self.connect()
@@ -68,6 +68,30 @@ class NotificationsWebsocket:
         return self._notification_socket is not None
 
     async def connect(self) -> None:
+        self._closed_by_client = False
+        await self._init_connection()
+
+        self._handle_connection_task = asyncio.create_task(self._handle_connection())
+
+    async def _handle_connection(self) -> None:
+        try:
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(self._send_client_heartbeat_loop())
+                tg.create_task(self._handle_incoming_frame_loop())
+        except ExceptionGroup as e:
+            connection_closed: websockets.ConnectionClosed | None = (
+                e.exceptions[0]
+                if len(e.exceptions) == 1 and isinstance(e.exceptions[0], websockets.ConnectionClosed)
+                else None
+            )
+            if connection_closed is not None:
+                logger.info(
+                    "Connection closed with status %d and reason %s", connection_closed.code, connection_closed.reason
+                )
+                if not self._closed_by_client and self.on_unexpected_connection_close is not None:
+                    self.on_unexpected_connection_close(connection_closed)
+
+    async def _init_connection(self) -> None:
         if self.is_open:
             raise Exception(__name__ + " already connected")
 
@@ -85,12 +109,7 @@ class NotificationsWebsocket:
             raise Exception("Binary frame was unexpected")
         first_server_frame = stomp.parse_server_frame(frame_data)
         if not isinstance(first_server_frame, stomp.ConnectedFrame):
-            raise Exception(f"Excepted stomp.ConnectedFrame but got {first_server_frame}")
-
-        logger.debug("Start send client heartbeat task")
-        self._task_send_client_heartbeat = asyncio.create_task(self._send_client_heartbeat_loop())
-        logger.debug("Start handle incoming frame task")
-        self._task_handle_incoming_frame = asyncio.create_task(self._handle_incoming_frame_loop())
+            raise Exception(f"Expected stomp.ConnectedFrame but got {first_server_frame}")
 
     async def subscribe(self) -> uuid.UUID:
         if self._notification_socket is None:
@@ -136,16 +155,21 @@ class NotificationsWebsocket:
         await self._notification_socket.send(payload.get_frame())
 
     async def _send_client_heartbeat_loop(self) -> None:
+        logger.debug("Start send client heartbeat loop")
         while current_task_is_running() and self._notification_socket is not None:
             try:
                 logger.debug("Send heartbeat")
                 await self._notification_socket.send("\r\n")
                 await asyncio.sleep(10)
+            except websockets.ConnectionClosed as e:
+                raise e
             except Exception as e:
                 logger.error("Unexpected error while sending client heartbeat : %s", traceback.format_exc())
                 raise e
+        logger.debug("End send client heartbeat loop")
 
     async def _handle_incoming_frame_loop(self) -> None:
+        logger.debug("Start handle incoming frame loop")
         while current_task_is_running() and self._notification_socket is not None:
             try:
                 logger.debug("Waiting for message")
@@ -168,50 +192,53 @@ class NotificationsWebsocket:
                         if notification_type is None:
                             raise Exception("Unexpected message without notificationType")
 
-                        if notification_type in ("ON_CONNECT", "BUCKET_UPDATE"):
+                        if notification_type in ("ON_CONNECT", "BUCKET_UPDATE", "REFRESH_ALL"):
                             interior_units = [
-                                InteriorUnitNotification(d).to_internal_representation() for d in frame.body["data"]
+                                InteriorUnitBase(
+                                    d["id"],
+                                    d["name"],
+                                    d["roomTemperature"],
+                                    d["relativeTemperature"],
+                                    utc_datetime_from_millis(d["updatedAt"]),
+                                    d["online"],
+                                    utc_datetime_from_millis(d["lastOnlineUpdatedAt"]),
+                                    d["model"],
+                                    str(d["modelTypeId"]),
+                                    d["serialNumber"],
+                                    d["vendorThingId"],
+                                    d["scheduletype"],
+                                    d["power"],
+                                    d["mode"],
+                                    d["iduTemperature"],
+                                    d["humidity"],
+                                    d["fanSpeed"],
+                                    d["fanSwing"],
+                                )
+                                for d in frame.body["data"]
                             ]
-                            self.state_callback(interior_units)
+                            self.state_callback(interior_units, notification_type == "BUCKET_UPDATE")
                         else:
                             raise Exception("Unexpected message notification_type", notification_type)
 
                     case _:
                         logger.warning("Unexpected frame type : %s", frame.message)
             except websockets.ConnectionClosed as e:
-                logger.debug("Connection closed (%s)", e)
-                if self.on_connection_closed_by_server is not None:
-                    self.on_connection_closed_by_server(e)
-
-                # Not sure how to handle the situation knowing
-                # that self.close will want the current task to be canceled
-                # And the cancellation wait for this to finish
-                asyncio.create_task(self.close())
-                return
+                raise e
             except Exception as e:
                 logger.error("Unexpected error while handling incoming message : %s", traceback.format_exc())
                 raise e
+        logger.debug("End handle incoming frame loop")
 
     async def close(self) -> None:
+        if not self.is_open:
+            return
+
+        self._closed_by_client = True
         try:
-            if self._task_send_client_heartbeat is not None:
-                self._task_send_client_heartbeat.cancel()
-                try:
-                    await self._task_send_client_heartbeat
-                except asyncio.exceptions.CancelledError as e:
-                    logger.debug("Canceled `send client heartbeat` task : %s", e)
-
-            if self._task_handle_incoming_frame is not None:
-                self._task_handle_incoming_frame.cancel()
-                try:
-                    await self._task_handle_incoming_frame
-                except asyncio.exceptions.CancelledError as e:
-                    logger.debug("Canceled `handle incoming frame` task : %s", e)
-
-            if self._notification_socket is not None:
-                await self._notification_socket.close()
-                logger.info("Websocket closed")
+            await asyncio.gather(
+                self._notification_socket.close(),
+                self._handle_connection_task
+            )
         finally:
             self._notification_socket = None
-            self._task_handle_incoming_frame = None
-            self._task_send_client_heartbeat = None
+        logger.info("Websocket closed")

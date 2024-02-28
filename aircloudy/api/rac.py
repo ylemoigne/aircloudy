@@ -1,21 +1,22 @@
 from __future__ import annotations
 
+import json
 import logging
 
-from aircloudy.contants import DEFAULT_REST_API_HOST, FanSpeed, FanSwing, OperatingMode, Power, TokenSupplier
+from aircloudy.contants import DEFAULT_REST_API_HOST, ApiCommandState, Power, TokenSupplier
 
 from ..errors import TooManyRequestsException
-from ..interior_unit_models import InteriorUnit
+from ..interior_unit_base import InteriorUnitBase
+from ..utils import utc_datetime_from_millis
 from .http_client import perform_request
-from .rac_models import CommandResponse, CommandStatus, PowerAllResponse, _GeneralControlCommand, _InteriorUnitRest
+from .rac_models import CommandResponse, InteriorUnitUserState, PowerAllResponse
 
 logger = logging.getLogger(__name__)
 
 
 async def get_interior_units(
     token_supplier: TokenSupplier, family_id: int, host: str = DEFAULT_REST_API_HOST, port: int = 443
-) -> list[InteriorUnit]:
-    logger.debug("Get interior units")
+) -> list[InteriorUnitBase]:
     response = await perform_request(
         "GET", f"/rac/ownership/groups/{family_id}/idu-list", token_supplier=token_supplier, host=host, port=port
     )
@@ -23,14 +24,34 @@ async def get_interior_units(
     if response.status != 200:
         raise Exception(f"Call failed (status={response.status} body={response.body}")
 
-    return [_InteriorUnitRest(d).to_internal_representation() for d in response.body_as_json]
+    return [
+        InteriorUnitBase(
+            d["id"],
+            d["name"],
+            d["roomTemperature"],
+            d["relativeTemperature"],
+            utc_datetime_from_millis(d["updatedAt"]),
+            d["online"],
+            utc_datetime_from_millis(d["lastOnlineUpdatedAt"]),
+            d["model"],
+            str(d["racTypeId"]),
+            d["serialNumber"],
+            d["vendorThingId"],
+            d["scheduleType"],
+            d["power"],
+            d["mode"],
+            d["iduTemperature"],
+            d["humidity"],
+            d["fanSpeed"],
+            d["fanSwing"],
+        )
+        for d in response.body_as_json
+    ]
 
 
-async def get_command_status(
+async def get_commands_state(
     token_supplier: TokenSupplier, commands: list[CommandResponse], host: str = DEFAULT_REST_API_HOST, port: int = 443
-) -> list[CommandStatus]:
-    logger.debug("Get command status")
-
+) -> dict[str, ApiCommandState]:
     response = await perform_request(
         "POST",
         "/rac/status/command",
@@ -40,19 +61,13 @@ async def get_command_status(
         port=port,
     )
 
-    return [CommandStatus(s) for s in response.body_as_json]
+    return {item["commandId"]: item["status"] for item in response.body_as_json}
 
 
-async def configure_interior_unit(
+async def send_command(
     token_supplier: TokenSupplier,
     family_id: int,
-    interior_unit: InteriorUnit,
-    power: Power | None = None,
-    mode: OperatingMode | None = None,
-    requested_temperature: float | None = None,
-    humidity: int | None = None,
-    fan_speed: FanSpeed | None = None,
-    fan_swing: FanSwing | None = None,
+    command: InteriorUnitUserState,
     host: str = DEFAULT_REST_API_HOST,
     port: int = 443,
 ) -> CommandResponse:
@@ -61,13 +76,12 @@ async def configure_interior_unit(
     :raises:
         TooManyRequestsException: If previous command is still in progress
     """
-    command = _GeneralControlCommand(interior_unit, power, mode, requested_temperature, humidity, fan_speed, fan_swing)
-
-    logger.debug("Configure interior unit familiy_id=%s : %s", family_id, command.__dict__)
+    body = command.to_api()
+    logger.debug("Configure interior unit familiy_id=%s : %s", family_id, body)
     response = await perform_request(
         "PUT",
-        f"/rac/basic-idu-control/general-control-command/{command.id}?familyId={family_id}",
-        body=command.__dict__,
+        f"/rac/basic-idu-control/general-control-command/{command.rac_id}?familyId={family_id}",
+        body=body,
         do_not_raise_exception_on=(200, 429),
         token_supplier=token_supplier,
         host=host,
@@ -109,7 +123,7 @@ async def set_power_all(
     token_supplier: TokenSupplier,
     family_id: str,
     power: Power,
-    interior_units: list[InteriorUnit],
+    interior_units_state: list[InteriorUnitUserState],
     host: str = DEFAULT_REST_API_HOST,
     port: int = 443,
 ) -> PowerAllResponse:
@@ -121,13 +135,13 @@ async def set_power_all(
         case _:
             raise Exception(f"Unknown power value {power}")
 
-    units = [_GeneralControlCommand(iu, power=power).__dict__ for iu in interior_units]
+    units = [iu.copy(power=power).to_api() for iu in interior_units_state]
 
     logger.debug("Set power all power=%s for %s", power, units)
     response = await perform_request(
         "PUT",
         url,
-        body=units,
+        body=json.dumps(units),
         do_not_raise_exception_on=(200, 207),
         token_supplier=token_supplier,
         host=host,

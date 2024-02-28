@@ -72,3 +72,45 @@ poetry run task test
 ```console
 poetry run task coverage
 ```
+
+## Notes
+
+Not read/used field from notification :
+```
+iduFrostWashStatus: IduFrostWashStatus
+        active: bool
+        priority: int
+        astUpdatedA: int
+        subCategory = None
+        errorCode = None
+specialOperationStatus: SpecialOperationStatus
+        active: bool
+        priority: int
+        lastUpdatedAt: int
+        subCategory = None
+        errorCode = None
+errorStatus: ErrorStatus
+        active: bool
+        priority: int
+        lastUpdatedAt: int
+        subCategory: str
+        errorCode = None
+cloudId: str
+opt4: int
+holidayModeStatus: HolidayModeStatus
+        active: bool
+        priority: int
+        lastUpdatedAt: int
+        subCategory = None
+        errorCode = None
+SysType: int
+```
+
+Not read/used field from API:
+```
+userId: str
+iduFrostWash: bool
+specialOperation: bool
+criticalError: bool
+zoneId: str
+```
