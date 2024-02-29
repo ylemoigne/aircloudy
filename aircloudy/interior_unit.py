@@ -54,6 +54,8 @@ class InteriorUnit:
     _model_id: str
     _user_state: InteriorUnitUserState
 
+    on_changes: Callable[[InteriorUnitChanges], None] | None = None
+
     _state_lock: asyncio.Lock = asyncio.Lock()
     _next_state: NextState | None = None
     _state_updater: asyncio.Task | None = None
@@ -124,6 +126,10 @@ class InteriorUnit:
         self._vendor = base.vendor
         self._model_id = base.model_id
         self._user_state = base.user_state
+
+        if self.on_changes is not None:
+            self.on_changes(changes)
+
         return changes
 
     @property
