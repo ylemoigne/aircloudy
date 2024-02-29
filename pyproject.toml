@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aircloudy"
-version = "0.1.7"
+version = "0.1.8"
 description = "A library to pilot hitachi aircloud AC"
 keywords = ["aircloud", "SPX-WFG"]
 authors = ["Yann Le Moigne <ylemoigne@javatic.fr>"]

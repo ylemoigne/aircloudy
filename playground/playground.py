@@ -64,6 +64,7 @@ async def main() -> None:
 
 
         bureau = [iu for iu in ac.interior_units if iu.name == "Bureau"][0]
+        bureau.on_changes = lambda changes: print("bureau: "+str(changes))
         print("0", bureau.requested_temperature, bureau.fan_speed, bureau.fan_swing, bureau.power)
         await bureau.send_command(requested_temperature=18)
         print("1", bureau.requested_temperature, bureau.fan_speed, bureau.fan_swing, bureau.power)
