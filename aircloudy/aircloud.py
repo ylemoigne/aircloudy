@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 import logging
 from dataclasses import dataclass
 from types import TracebackType
@@ -82,7 +81,7 @@ class HitachiAirCloud:
 
     @property
     def interior_units(self) -> list[InteriorUnit]:
-        return [iu for iu in self._interior_units.values()]
+        return list(self._interior_units.values())
 
     @property
     def temperature_unit(self) -> TemperatureUnit:

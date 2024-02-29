@@ -110,15 +110,9 @@ class InteriorUnit:
                 if self._user_state._requested_temperature != base.requested_temperature
                 else None
             ),
-            (self._user_state.humidity, base.humidity)
-            if self._user_state._humidity != base.humidity
-            else None,
-            (self._user_state.fan_speed, base.fan_speed)
-            if self._user_state._fan_speed != base.fan_speed
-            else None,
-            (self._user_state.fan_swing, base.fan_swing)
-            if self._user_state._fan_swing != base.fan_swing
-            else None,
+            (self._user_state.humidity, base.humidity) if self._user_state._humidity != base.humidity else None,
+            (self._user_state.fan_speed, base.fan_speed) if self._user_state._fan_speed != base.fan_speed else None,
+            (self._user_state.fan_swing, base.fan_swing) if self._user_state._fan_swing != base.fan_swing else None,
         )
 
         self._name = base.name
@@ -239,14 +233,14 @@ class InteriorUnit:
             return False
 
         return (
-                self._id == other._id
-                and self._name == other._name
-                and self._room_temperature == other._room_temperature
-                and self._relative_temperature == other._relative_temperature
-                and self._updated_at == other._updated_at
-                and self._online == other._online
-                and self._online_updated_at == other._online_updated_at
-                and self._vendor == other._vendor
-                and self._model_id == other._model_id
-                and self._user_state == other._user_state
+            self._id == other._id
+            and self._name == other._name
+            and self._room_temperature == other._room_temperature
+            and self._relative_temperature == other._relative_temperature
+            and self._updated_at == other._updated_at
+            and self._online == other._online
+            and self._online_updated_at == other._online_updated_at
+            and self._vendor == other._vendor
+            and self._model_id == other._model_id
+            and self._user_state == other._user_state
         )

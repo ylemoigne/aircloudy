@@ -26,30 +26,32 @@ class InteriorUnitChanges:
     @property
     def has_changes(self) -> bool:
         return (
-                self.name is not None
-                or self.room_temperature is not None
-                or self.relative_temperature is not None
-                or self.updated_at is not None
-                or self.online is not None
-                or self.online_updated_at is not None
-                or self.vendor is not None
-                or self.model_id is not None
-                or self.power is not None
-                or self.operating_mode is not None
-                or self.requested_temperature is not None
-                or self.humidity is not None
-                or self.fan_speed is not None
-                or self.fan_swing is not None
+            self.name is not None
+            or self.room_temperature is not None
+            or self.relative_temperature is not None
+            or self.updated_at is not None
+            or self.online is not None
+            or self.online_updated_at is not None
+            or self.vendor is not None
+            or self.model_id is not None
+            or self.power is not None
+            or self.operating_mode is not None
+            or self.requested_temperature is not None
+            or self.humidity is not None
+            or self.fan_speed is not None
+            or self.fan_swing is not None
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         changes_as_string: list[str] = []
         if self.name is not None:
             changes_as_string.append(f"name={self.name[0]}->{self.name[1]}")
         if self.room_temperature is not None:
             changes_as_string.append(f"room_temperature={self.room_temperature[0]}->{self.room_temperature[1]}")
         if self.relative_temperature is not None:
-            changes_as_string.append(f"relative_temperature={self.relative_temperature[0]}->{self.relative_temperature[1]}")
+            changes_as_string.append(
+                f"relative_temperature={self.relative_temperature[0]}->{self.relative_temperature[1]}"
+            )
         if self.updated_at is not None:
             changes_as_string.append(f"updated_at={self.updated_at[0]}->{self.updated_at[1]}")
         if self.online is not None:
@@ -65,7 +67,9 @@ class InteriorUnitChanges:
         if self.operating_mode is not None:
             changes_as_string.append(f"operating_mode={self.operating_mode[0]}->{self.operating_mode[1]}")
         if self.requested_temperature is not None:
-            changes_as_string.append(f"requested_temperature={self.requested_temperature[0]}->{self.requested_temperature[1]}")
+            changes_as_string.append(
+                f"requested_temperature={self.requested_temperature[0]}->{self.requested_temperature[1]}"
+            )
         if self.humidity is not None:
             changes_as_string.append(f"humidity={self.humidity[0]}->{self.humidity[1]}")
         if self.fan_speed is not None:

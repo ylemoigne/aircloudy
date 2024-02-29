@@ -230,15 +230,15 @@ class NotificationsWebsocket:
         logger.debug("End handle incoming frame loop")
 
     async def close(self) -> None:
-        if not self.is_open:
-            return
-
         self._closed_by_client = True
         try:
-            await asyncio.gather(
-                self._notification_socket.close(),
-                self._handle_connection_task
-            )
+            tasks: list[Awaitable] = []
+            if self._notification_socket is not None:
+                tasks.append(self._notification_socket.close())
+            if self._handle_connection_task is not None:
+                tasks.append(self._handle_connection_task)
+
+            await asyncio.gather(*tasks)
         finally:
             self._notification_socket = None
         logger.info("Websocket closed")
