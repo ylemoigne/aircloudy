@@ -57,20 +57,24 @@ asyncio.run(main())
 
 ## Development
 
-```console
+```shell
 poetry run task lint
 ```
 
-```console
+```shell
 poetry run task check
 ```
 
-```console
+```shell
 poetry run task test
 ```
 
-```console
+```shell
 poetry run task coverage
+```
+
+```shell
+poetry --build publish
 ```
 
 ## Notes
