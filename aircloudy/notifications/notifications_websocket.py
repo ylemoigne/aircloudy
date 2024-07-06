@@ -89,7 +89,7 @@ class NotificationsWebsocket:
                     "Connection closed with status %d and reason %s", connection_closed.code, connection_closed.reason
                 )
                 if not self._closed_by_client and self.on_unexpected_connection_close is not None:
-                    self.on_unexpected_connection_close(connection_closed)
+                    await self.on_unexpected_connection_close(connection_closed)
 
     async def _init_connection(self) -> None:
         if self.is_open:

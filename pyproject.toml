@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aircloudy"
-version = "0.1.8"
+version = "0.1.9"
 description = "A library to pilot hitachi aircloud AC"
 keywords = ["aircloud", "SPX-WFG"]
 authors = ["Yann Le Moigne <ylemoigne@javatic.fr>"]
@@ -15,7 +15,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.10"
 websockets = "^12.0"
-aiohttp = "^3.9.3"
+aiohttp = "^3.9.5"
 aiodns = "^3.1.1"
 pyjwt = "^2.8.0"
 tzlocal = "^5.2"

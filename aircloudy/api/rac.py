@@ -77,7 +77,7 @@ async def send_command(
         TooManyRequestsException: If previous command is still in progress
     """
     body = command.to_api()
-    logger.debug("Configure interior unit familiy_id=%s : %s", family_id, body)
+    logger.info("Configure interior unit family_id=%s : %s", family_id, body)
     response = await perform_request(
         "PUT",
         f"/rac/basic-idu-control/general-control-command/{command.rac_id}?familyId={family_id}",
