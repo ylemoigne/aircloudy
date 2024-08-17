@@ -13,7 +13,7 @@ FanSwing: TypeAlias = Literal["OFF", "VERTICAL", "HORIZONTAL", "BOTH", "AUTO"]
 FanSpeed: TypeAlias = Literal["LV1", "LV2", "LV3", "LV4", "LV5", "AUTO"]
 Power: TypeAlias = Literal["ON", "OFF"]
 
-OperatingMode: TypeAlias = Literal["AUTO", "COOLING", "DE_HUMIDIFY", "DRY", "FAN", "HEATING"]
+OperatingMode: TypeAlias = Literal["AUTO", "COOLING", "DRY", "FAN", "HEATING"]
 TemperatureUnit: TypeAlias = Literal["CELSIUS", "FAHRENHEIT"]
 
 ScheduleType: TypeAlias = Literal[
