@@ -37,7 +37,7 @@ class AuthManager:
             if self._token is None:
                 return await self._perform_login()
 
-            now = datetime.datetime.now(tzlocal.get_localzone()).astimezone(datetime.timezone.utc)
+            now = datetime.datetime.now(tzlocal.get_localzone()).astimezone(datetime.UTC)
             limit_date = self._token.exp - self._refresh_before_expiration
             if now <= limit_date:
                 return self._token.value

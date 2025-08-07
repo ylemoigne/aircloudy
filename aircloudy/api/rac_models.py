@@ -122,6 +122,9 @@ class InteriorUnitUserState:
             "fanSwing": self.fan_swing,
         }
 
+    def __hash__(self) -> int:
+        return hash(self._rac_id)
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, InteriorUnitUserState):
             return False

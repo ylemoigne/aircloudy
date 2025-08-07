@@ -3,12 +3,10 @@ from __future__ import annotations
 import asyncio
 import datetime
 from asyncio import Future
-from typing import Awaitable, TypeVar
-
-T = TypeVar("T")
+from collections.abc import Awaitable
 
 
-def awaitable(value: T) -> Awaitable[T]:
+def awaitable[T](value: T) -> Awaitable[T]:
     f: Future[T] = asyncio.Future()
     f.set_result(value)
     return f
@@ -26,4 +24,4 @@ def current_task_is_running() -> bool:
 
 
 def utc_datetime_from_millis(millis: int) -> datetime.datetime:
-    return datetime.datetime.fromtimestamp(millis / 1000.0, datetime.timezone.utc)
+    return datetime.datetime.fromtimestamp(millis / 1000.0, datetime.UTC)

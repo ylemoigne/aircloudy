@@ -81,8 +81,8 @@ class JWTToken:
         self.iss = data["iss"]
         self.aud = data["aud"]
         self.jti = data.get("jti")
-        self.iat = datetime.datetime.fromtimestamp(data["iat"], datetime.timezone.utc)
-        self.exp = datetime.datetime.fromtimestamp(data["exp"], datetime.timezone.utc)
+        self.iat = datetime.datetime.fromtimestamp(data["iat"], datetime.UTC)
+        self.exp = datetime.datetime.fromtimestamp(data["exp"], datetime.UTC)
 
 
 @dataclass

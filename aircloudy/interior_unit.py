@@ -4,8 +4,8 @@ import asyncio
 import datetime
 import logging
 import traceback
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Awaitable, Callable
 
 from .api.rac_models import InteriorUnitUserState
 from .contants import ApiCommandState, FanSpeed, FanSwing, OperatingMode, Power
@@ -32,6 +32,9 @@ class NextState:
     @property
     def created_at(self) -> datetime.datetime:
         return self._created_at
+
+    def __hash__(self) -> int:
+        return hash(self._command)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, NextState):
@@ -233,6 +236,9 @@ class InteriorUnit:
                 logger.warning("Failed to acknowledge command execution: %s", traceback.format_exc())
 
             last_state = new_state
+
+    def __hash__(self) -> int:
+        return hash(self._id)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, InteriorUnit):

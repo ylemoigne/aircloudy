@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Callable, Self
+from typing import Self
 
 from . import api, notifications
 from .api.rac_models import InteriorUnitUserState
@@ -151,7 +152,6 @@ class HitachiAirCloud:
         finally:
             self._connection_info = None
             self._interior_units = {}
-        logging.info("Closed")
 
     def _update_interior_units(self, interior_units: list[InteriorUnitBase], partial: bool) -> None:
         logger.debug("Received interior units update: %s", interior_units)

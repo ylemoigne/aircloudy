@@ -5,8 +5,9 @@ import logging
 import traceback
 import uuid
 from asyncio import Task
+from collections.abc import Awaitable, Callable
 from types import TracebackType
-from typing import Awaitable, Callable, Self
+from typing import Self
 
 import websockets
 
